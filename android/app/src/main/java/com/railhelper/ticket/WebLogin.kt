@@ -109,7 +109,7 @@ private fun NativeLoginScreen(
 
     var mode by rememberSaveable { mutableStateOf(LoginMode.Password) }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().originPage()) {
         TabRow(selectedTabIndex = if (mode == LoginMode.Password) 0 else 1) {
             Tab(
                 selected = mode == LoginMode.Password,
@@ -141,14 +141,16 @@ private fun NativeLoginScreen(
 
 @Composable
 private fun LoggedInPanel(user: User, onLogout: () -> Unit) {
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().originPage(),
+        contentPadding = PaddingValues(OriginPagePadding),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("已登录", style = MaterialTheme.typography.titleLarge)
-                    Text(user.railwayUsername, fontWeight = FontWeight.SemiBold)
-                    OutlinedButton(onClick = onLogout) { Text("退出登录") }
-                }
+            OriginCard(contentPadding = 16.dp) {
+                OriginSectionHeader("已登录")
+                Text(user.railwayUsername, fontWeight = FontWeight.SemiBold, color = OriginColors.TextPrimary)
+                OriginSecondaryButton(onClick = onLogout) { Text("退出登录") }
             }
         }
     }
@@ -291,12 +293,14 @@ private fun PasswordLoginPanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .originPage()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(OriginPagePadding),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("12306 账号登录", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        OriginCard(contentPadding = 16.dp) {
+        OriginSectionHeader("12306 账号登录")
 
         OutlinedTextField(
             value = username,
@@ -304,7 +308,8 @@ private fun PasswordLoginPanel(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("用户名 / 邮箱 / 手机号") },
             singleLine = true,
-            enabled = !loading
+            enabled = !loading,
+            colors = OriginFieldColors()
         )
 
         OutlinedTextField(
@@ -314,6 +319,7 @@ private fun PasswordLoginPanel(
             label = { Text("密码") },
             singleLine = true,
             enabled = !loading,
+            colors = OriginFieldColors(),
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             trailingIcon = {
@@ -352,21 +358,22 @@ private fun PasswordLoginPanel(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = ::startPasswordLogin, enabled = !loading, modifier = Modifier.weight(1f)) {
+            OriginPrimaryButton(onClick = ::startPasswordLogin, enabled = !loading, modifier = Modifier.weight(1f)) {
                 if (loading && challengeId.isBlank()) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.size(8.dp))
                 }
                 Text("登录")
             }
-            OutlinedButton(onClick = onSwitchToQr, enabled = !loading) {
+            OriginSecondaryButton(onClick = onSwitchToQr, enabled = !loading) {
                 Text("扫码")
             }
         }
 
-        Text(status, style = MaterialTheme.typography.bodyMedium)
+        Text(status, style = MaterialTheme.typography.bodyMedium, color = OriginColors.TextSecondary)
         if (loading) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
         }
 
         if (challengeId.isNotBlank()) {
@@ -397,7 +404,7 @@ private fun PasswordLoginPanel(
             )
         }
 
-        TextButton(
+        OriginTextButton(
             onClick = {
                 credentialStore.clear()
                 username = ""
@@ -431,19 +438,18 @@ private fun VerificationPanel(
     onSlideVerified: (JSONObject) -> Unit,
     onMessage: (String) -> Unit
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("登录验证", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    OriginCard(contentPadding = 16.dp) {
+            OriginSectionHeader("登录验证")
 
             if (availableVerifications.size > 1) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (availableVerifications.contains("slide")) {
-                        OutlinedButton(onClick = { onModeChange("slide") }, enabled = !loading) {
+                        OriginSecondaryButton(onClick = { onModeChange("slide") }, enabled = !loading) {
                             Text("滑块验证")
                         }
                     }
                     if (availableVerifications.contains("sms")) {
-                        OutlinedButton(onClick = { onModeChange("sms") }, enabled = !loading) {
+                        OriginSecondaryButton(onClick = { onModeChange("sms") }, enabled = !loading) {
                             Text("短信验证")
                         }
                     }
@@ -471,10 +477,11 @@ private fun VerificationPanel(
                         label = { Text("证件号后 4 位") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
-                        enabled = !loading
+                        enabled = !loading,
+                        colors = OriginFieldColors()
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = onSendSms, enabled = !loading, modifier = Modifier.weight(1f)) {
+                        OriginPrimaryButton(onClick = onSendSms, enabled = !loading, modifier = Modifier.weight(1f)) {
                             Text(if (smsSent) "重新发送" else "获取验证码")
                         }
                     }
@@ -485,9 +492,10 @@ private fun VerificationPanel(
                         label = { Text("短信验证码") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        enabled = !loading
+                        enabled = !loading,
+                        colors = OriginFieldColors()
                     )
-                    Button(onClick = onSubmitSms, enabled = !loading && smsSent, modifier = Modifier.fillMaxWidth()) {
+                    OriginPrimaryButton(onClick = onSubmitSms, enabled = !loading && smsSent, modifier = Modifier.fillMaxWidth()) {
                         Text("提交验证码")
                     }
                 }
@@ -496,7 +504,6 @@ private fun VerificationPanel(
                     Text("请选择验证方式")
                 }
             }
-        }
     }
 }
 
@@ -596,31 +603,34 @@ private fun QrFallbackLoginPanel(
         }
     }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().originPage(),
+        contentPadding = PaddingValues(OriginPagePadding),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
-            Card(Modifier.fillMaxWidth()) {
-                Column(
-                    Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("12306 扫码登录", style = MaterialTheme.typography.titleLarge)
+            OriginCard(contentPadding = 16.dp) {
+                    androidx.compose.foundation.layout.Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                    OriginSectionHeader("12306 扫码登录")
                     if (imageBase64.isNotBlank()) {
                         QrImage(imageBase64)
                     } else {
                         Icon(Icons.Default.DirectionsRailway, contentDescription = null, modifier = Modifier.size(96.dp))
                     }
-                    Text(status)
+                    Text(status, color = OriginColors.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = ::requestQr, enabled = !loading) {
+                        OriginPrimaryButton(onClick = ::requestQr, enabled = !loading) {
                             Text(if (imageBase64.isBlank()) "获取二维码" else "刷新二维码")
                         }
-                        OutlinedButton(
+                        OriginSecondaryButton(
                             onClick = { shareQr(context, imageBase64, onMessage) },
                             enabled = imageBase64.isNotBlank()
                         ) { Text("分享二维码") }
                     }
-                    TextButton(onClick = onBackToPassword) { Text("返回账号登录") }
+                    OriginTextButton(onClick = onBackToPassword) { Text("返回账号登录") }
                 }
             }
         }

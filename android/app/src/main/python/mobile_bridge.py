@@ -692,6 +692,7 @@ def query_tickets(params_json: str) -> str:
                     from_station=params.get("from_station", ""),
                     to_station=params.get("to_station", ""),
                     train_date=params.get("train_date", ""),
+                    ticket_type=params.get("ticket_type", "ADULT"),
                     train_types=train_types,
                     start_time_range=start_time_range,
                     only_has_ticket=bool(params.get("only_has_ticket", False)),
