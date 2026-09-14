@@ -98,7 +98,7 @@
           </el-col>
           <el-col v-else :xs="24" :sm="12">
             <el-form-item label="日期偏移">
-              <el-input-number v-model="form.date_offset_days" :min="0" :max="60" />
+              <el-input-number v-model="form.date_offset_days" :min="0" :max="15" />
               <span class="unit-text">天后</span>
               <div class="form-tip">例如 14 表示每天运行时监控“今天 + 14 天”的车票。</div>
             </el-form-item>
@@ -334,7 +334,7 @@ const disabledDate = (time) => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const max = new Date(today)
-  max.setDate(max.getDate() + 60)
+  max.setDate(max.getDate() + 15)
   return time.getTime() < today.getTime() || time.getTime() > max.getTime()
 }
 
@@ -493,7 +493,7 @@ onMounted(async () => {
       schedule_mode: task.schedule_mode || 'once',
       daily_start_time: task.daily_start_time || '07:00',
       date_strategy: task.date_strategy || 'fixed',
-      date_offset_days: task.date_offset_days ?? 14,
+      date_offset_days: Math.min(task.date_offset_days ?? 14, 15),
       confirmation_required: !!task.confirmation_required
     })
     if (task.start_time_range) {
