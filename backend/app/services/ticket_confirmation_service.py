@@ -88,25 +88,45 @@ class TicketConfirmationService:
         seat_name: str,
         seat_count: str,
     ) -> Optional[TicketConfirmation]:
-        """Create and send one pending confirmation, suppressing active duplicates."""
+        """Create one pending decision per task and send its WeCom card."""
         now = china_now()
         expiry_seconds = clamp_confirmation_expiry(settings.WECOM_CONFIRM_EXPIRE_SECONDS)
         raw_token = secrets.token_urlsafe(24)
 
         async with AsyncSessionLocal() as db:
-            stmt = select(TicketConfirmation).where(
-                TicketConfirmation.task_id == task.id,
-                TicketConfirmation.train_date == train_date,
-                TicketConfirmation.train_code == train.train_code,
-                TicketConfirmation.seat_type == seat_type,
-                TicketConfirmation.status == ConfirmationStatus.PENDING,
+            # Only one live decision is allowed per task. This prevents a single
+            # scan from producing several actionable cards for different trains
+            # or seats and makes the human-in-the-loop flow unambiguous.
+            result = await db.execute(
+                select(TicketConfirmation).where(
+                    TicketConfirmation.task_id == task.id,
+                    TicketConfirmation.status == ConfirmationStatus.PENDING,
+                )
             )
-            result = await db.execute(stmt)
-            existing = result.scalars().all()
-            for item in existing:
+            pending = result.scalars().all()
+            for item in pending:
                 if item.expires_at > now:
                     return None
                 item.status = ConfirmationStatus.EXPIRED
+
+            # Short cool-down after an explicit ignore for the same candidate so
+            # the next 3-second scan does not immediately push an identical card.
+            recent_result = await db.execute(
+                select(TicketConfirmation)
+                .where(
+                    TicketConfirmation.task_id == task.id,
+                    TicketConfirmation.train_date == train_date,
+                    TicketConfirmation.train_code == train.train_code,
+                    TicketConfirmation.seat_type == seat_type,
+                    TicketConfirmation.status == ConfirmationStatus.IGNORED,
+                )
+                .order_by(TicketConfirmation.updated_at.desc())
+                .limit(1)
+            )
+            recent_ignored = recent_result.scalar_one_or_none()
+            if recent_ignored and recent_ignored.updated_at > now - timedelta(seconds=60):
+                await db.commit()
+                return None
 
             confirmation = TicketConfirmation(
                 task_id=task.id,
@@ -117,8 +137,8 @@ class TicketConfirmationService:
                 seat_type=seat_type,
                 seat_name=seat_name,
                 seat_count_snapshot=str(seat_count),
-                # Never rely on a stale secret when ordering. We deliberately
-                # omit it here and always fetch a fresh one after confirmation.
+                # Never rely on stale ordering credentials. Confirmation always
+                # re-runs QueryService and uses the fresh secret_str.
                 train_secret_snapshot=None,
                 expires_at=now + timedelta(seconds=expiry_seconds),
             )
@@ -193,8 +213,8 @@ class TicketConfirmationService:
             if action != "confirm":
                 return
 
-            # Claim first. Repeated button events now see a non-pending status
-            # and cannot trigger a second order attempt.
+            # Claim before network I/O. Repeated button events see non-pending
+            # state and therefore cannot start a second order attempt.
             confirmation.status = ConfirmationStatus.CONFIRMED
             confirmation.actor_id = actor_id or None
             confirmation.confirmed_at = china_now()
@@ -301,11 +321,13 @@ class TicketConfirmationService:
                         current_task.last_daily_success_date = china_now().date().isoformat()
                     else:
                         current_task.status = TaskStatus.SUCCESS
-                db.add(TaskLog(
-                    task_id=task_id,
-                    level="success",
-                    message=f"微信确认后订单提交成功: {order_result.order_id}",
-                ))
+                db.add(
+                    TaskLog(
+                        task_id=task_id,
+                        level="success",
+                        message=f"微信确认后订单提交成功: {order_result.order_id}",
+                    )
+                )
                 await db.commit()
 
             await self.bot.send_text(
