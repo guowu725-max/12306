@@ -14,14 +14,12 @@ from .config import get_settings
 
 settings = get_settings()
 
-# 创建异步引擎
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
     future=True,
 )
 
-# 创建异步会话工厂
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -50,8 +48,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db():
-    """初始化数据库（创建表）"""
+    """初始化/升级数据库。"""
+    # Import all models before create_all so new tables are present in metadata.
+    from .. import models as _models  # noqa: F401
+    from .migrations import run_compat_migrations
+
     async with engine.begin() as conn:
+        await run_compat_migrations(conn)
         await conn.run_sync(Base.metadata.create_all)
 
 
