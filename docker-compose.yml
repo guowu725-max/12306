@@ -7,6 +7,13 @@ services:
     environment:
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: "8000"
+      SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-Asia/Shanghai}
+      WECOM_BOT_ENABLED: ${WECOM_BOT_ENABLED:-false}
+      WECOM_BOT_ID: ${WECOM_BOT_ID:-}
+      WECOM_BOT_SECRET: ${WECOM_BOT_SECRET:-}
+      WECOM_BOT_CHAT_ID: ${WECOM_BOT_CHAT_ID:-}
+      WECOM_ALLOWED_USER_IDS: ${WECOM_ALLOWED_USER_IDS:-}
+      WECOM_CONFIRM_EXPIRE_SECONDS: ${WECOM_CONFIRM_EXPIRE_SECONDS:-60}
     volumes:
       - ./backend/data:/app/backend/data
     ports:

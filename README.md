@@ -26,12 +26,7 @@
 
 ```bash
 cd backend
-
-# 安装依赖
 pip install -r requirements.txt
-
-# 启动服务 (默认端口 8000)
-# 也可以使用: uvicorn main:app --reload
 python main.py
 ```
 
@@ -39,20 +34,83 @@ Swagger API 文档地址: http://localhost:8000/docs
 
 ### 2. 启动前端界面
 
-进入 `frontend` 目录，安装依赖并启动开发服务器：
-
 ```bash
 cd frontend
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
 ```
 
-访问地址: http://localhost:5173 (默认 Vite 端口)
+访问地址: http://localhost:5173
+
 - 本项目仅供学习交流使用，请勿用于非法用途。
+
+## 每日监控 + 企业微信确认
+
+本分支新增“每天定时监控、发现余票后由企业微信确认再下单”的模式。原有一次性抢票模式仍然保留。
+
+流程：
+
+```text
+每天固定时间
+  ↓
+按指定车次 / 席别查询余票
+  ↓
+发现余票
+  ↓
+企业微信智能机器人发送确认卡片
+  ↓
+用户点击「确认预定」
+  ↓
+服务端重新查询同一日期 / 车次 / 席别
+  ↓
+仍有票才提交 12306 订单
+  ↓
+企业微信通知订单号
+  ↓
+用户前往官方 12306 完成支付
+```
+
+### 企业微信智能机器人配置
+
+后端使用企业微信官方 `wecom-aibot-python-sdk` WebSocket 长连接 SDK。创建企业微信智能机器人后，将 Bot ID 和 Secret 配置到环境变量中。
+
+可以从根目录的 `.env.example` 复制所需变量：
+
+```bash
+WECOM_BOT_ENABLED=true
+WECOM_BOT_ID=your_bot_id
+WECOM_BOT_SECRET=your_bot_secret
+WECOM_BOT_CHAT_ID=your_chat_id
+WECOM_ALLOWED_USER_IDS=user_a,user_b
+WECOM_CONFIRM_EXPIRE_SECONDS=60
+```
+
+`WECOM_ALLOWED_USER_IDS` 可留空；配置后只有白名单中的企业微信用户可以点击确认触发下单。确认有效期限制在 15–300 秒，默认 60 秒。
+
+> 不要把 Bot Secret 提交到 Git 仓库。生产环境请通过 Docker 环境变量、密钥管理服务或私有 `.env` 注入。
+
+### 创建每日任务
+
+在“创建抢票任务”页面选择：
+
+- 任务模式：`每天自动监控`
+- 每日启动时间：例如 `07:00`
+- 日期策略：
+  - `固定乘车日期`：每天监控同一个日期；或
+  - `每天动态计算`：例如偏移 `14` 天，表示每天监控当天往后第 14 天的车票
+- 指定车次：可同时填多个，例如 `G101`、`G103`
+- 席别优先级：例如二等座、一等座
+- 企业微信确认：每日任务强制启用
+
+每日任务不会走原有 `auto_submit` 直接下单路径。发现票后必须先完成企业微信确认，并且系统会在确认后重新查一次最新余票。
+
+### 安全与行为边界
+
+- 不保存或复用第一次查票得到的 `secret_str` 来提交订单。
+- 一个确认 token 最多触发一次下单尝试，重复按钮事件不会重复下单。
+- 不绕过验证码、风控或访问频率限制。
+- 不自动支付；订单提交后仍需在官方 12306 完成支付。
+- 老版本 SQLite 数据库启动时会自动补充本功能需要的新字段，无需删除原数据库。
 
 ## 工程治理
 
@@ -73,19 +131,20 @@ docker compose up -d --build
 - 前端页面: http://localhost:5173
 - 后端 API 文档: http://localhost:8000/docs
 
+### Docker 配置企业微信
+
+在 `docker-compose.yml` 的 backend 环境变量或你自己的 `.env` 中注入上述 `WECOM_*` 配置，然后重新构建/启动：
+
+```bash
+docker compose up -d --build
+```
+
 ### 常用命令
 
 ```bash
-# 查看服务状态
 docker compose ps
-
-# 查看日志
 docker compose logs -f
-
-# 仅看后端日志
 docker compose logs -f backend
-
-# 停止并移除容器
 docker compose down
 ```
 
@@ -110,8 +169,6 @@ docker compose down
 
 ### 一键构建（推荐）
 
-在项目根目录执行：
-
 ```bash
 python build_app.py --target windows
 ```
@@ -130,12 +187,7 @@ python build_app.py --target windows
 ### 常用参数
 
 ```bash
-# 清理旧产物
 python build_app.py --clean
-
-# 跳过后端构建（后端已构建时）
 python build_app.py --skip-backend --target windows
-
-# 跳过前端构建（前端已构建时）
 python build_app.py --skip-frontend --target windows
 ```
