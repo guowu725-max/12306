@@ -33,81 +33,55 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   async function createTask(taskData) {
-    try {
-      const res = await api.createTask(taskData)
-      if (res.success) {
-        tasks.value.unshift(res.data)
-        return res.data
-      }
-    } catch (error) {
-      throw error
+    const res = await api.createTask(taskData)
+    if (res.success) {
+      tasks.value.unshift(res.data)
+      return res.data
     }
   }
 
   async function updateTask(taskId, taskData) {
-    try {
-      const res = await api.updateTask(taskId, taskData)
-      if (res.success) {
-        const index = tasks.value.findIndex(t => t.id === taskId)
-        if (index !== -1) {
-          tasks.value[index] = res.data
-        }
-        return res.data
-      }
-    } catch (error) {
-      throw error
+    const res = await api.updateTask(taskId, taskData)
+    if (res.success) {
+      const numericId = Number(taskId)
+      const index = tasks.value.findIndex(t => Number(t.id) === numericId)
+      if (index !== -1) tasks.value[index] = res.data
+      currentTask.value = res.data
+      return res.data
     }
   }
 
   async function startTask(taskId) {
-    try {
-      const res = await api.startTask(taskId)
-      if (res.success) {
-        const task = tasks.value.find(t => t.id === taskId)
-        if (task) task.status = 'running'
-      }
-      return res
-    } catch (error) {
-      throw error
+    const res = await api.startTask(taskId)
+    if (res.success) {
+      const task = tasks.value.find(t => Number(t.id) === Number(taskId))
+      if (task) task.status = task.schedule_mode === 'daily' ? 'pending' : 'running'
     }
+    return res
   }
 
   async function stopTask(taskId) {
-    try {
-      const res = await api.stopTask(taskId)
-      if (res.success) {
-        const task = tasks.value.find(t => t.id === taskId)
-        if (task) task.status = 'paused'
-      }
-      return res
-    } catch (error) {
-      throw error
+    const res = await api.stopTask(taskId)
+    if (res.success) {
+      const task = tasks.value.find(t => Number(t.id) === Number(taskId))
+      if (task) task.status = 'paused'
     }
+    return res
   }
 
   async function cancelTask(taskId) {
-    try {
-      const res = await api.cancelTask(taskId)
-      if (res.success) {
-        const task = tasks.value.find(t => t.id === taskId)
-        if (task) task.status = 'cancelled'
-      }
-      return res
-    } catch (error) {
-      throw error
+    const res = await api.cancelTask(taskId)
+    if (res.success) {
+      const task = tasks.value.find(t => Number(t.id) === Number(taskId))
+      if (task) task.status = 'cancelled'
     }
+    return res
   }
 
   async function deleteTask(taskId) {
-    try {
-      const res = await api.deleteTask(taskId)
-      if (res.success) {
-        tasks.value = tasks.value.filter(t => t.id !== taskId)
-      }
-      return res
-    } catch (error) {
-      throw error
-    }
+    const res = await api.deleteTask(taskId)
+    if (res.success) tasks.value = tasks.value.filter(t => Number(t.id) !== Number(taskId))
+    return res
   }
 
   async function fetchTaskLogs(taskId) {
@@ -127,6 +101,7 @@ export const useTaskStore = defineStore('task', () => {
     fetchTasks,
     getTask,
     createTask,
+    updateTask,
     startTask,
     stopTask,
     cancelTask,
