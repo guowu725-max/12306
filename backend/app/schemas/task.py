@@ -45,7 +45,7 @@ class TaskCreate(BaseModel):
     schedule_mode: Literal["once", "daily"] = "once"
     daily_start_time: Optional[str] = None
     date_strategy: Literal["fixed", "offset"] = "fixed"
-    date_offset_days: int = Field(0, ge=0)
+    date_offset_days: int = Field(0, ge=0, le=15)
     confirmation_required: bool = False
 
     @model_validator(mode="after")
@@ -77,7 +77,7 @@ class TaskUpdate(BaseModel):
     schedule_mode: Optional[Literal["once", "daily"]] = None
     daily_start_time: Optional[str] = None
     date_strategy: Optional[Literal["fixed", "offset"]] = None
-    date_offset_days: Optional[int] = Field(None, ge=0)
+    date_offset_days: Optional[int] = Field(None, ge=0, le=15)
     confirmation_required: Optional[bool] = None
 
 
